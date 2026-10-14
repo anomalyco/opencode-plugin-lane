@@ -32,6 +32,7 @@ To configure the plugin manually or pass options, use the Git HTTPS URL as the p
       "options": {
         "executable": "/home/me/.local/bin/lane",
         "dirty": false,
+        "branchPrefix": "me",
       },
     },
   ],
@@ -42,12 +43,13 @@ To configure the plugin manually or pass options, use the Git HTTPS URL as the p
 | --- | --- | --- |
 | `executable` | `lane` | Command on the server's PATH, or an absolute binary path. |
 | `dirty` | `false` | Pass `--dirty` to carry primary-checkout edits and untracked files. |
+| `branchPrefix` | `""` | Prepend `<prefix>/` to new lane names, so `fix-auth` becomes branch `me/fix-auth` in `.lane/trees/me/fix-auth`. Use alphanumeric words separated by single hyphens or slashes. Existing lanes keep their names and stay manageable after the prefix changes. |
 
 Git targets also accept a branch, tag, or full commit hash after `#`, such as `git+https://github.com/anomalyco/opencode-plugin-lane.git#main`.
 
 ## Behavior
 
-- **Create:** takes the last component of OpenCode's suggested destination as the lane name and calls `lane new` under the primary checkout's `.lane/trees/`. Existing paths and branch names get a numeric suffix, with up to 10 candidates. The starting ref is resolved from OpenCode's explicit `branch` or the source checkout's current HEAD, including detached HEAD. The actual created directory is returned to OpenCode.
+- **Create:** takes the last component of OpenCode's suggested destination as the lane name, adds `branchPrefix` when configured, and calls `lane new` under the primary checkout's `.lane/trees/`. Existing paths and branch names get a numeric suffix, with up to 10 candidates. The starting ref is resolved from OpenCode's explicit `branch` or the source checkout's current HEAD, including detached HEAD. The actual created directory is returned to OpenCode.
 - **List:** filters `lane ls --json` to native `.lane/trees` worktrees with Lane's per-worktree identity stamp and matching branch name. Ordinary Git worktrees are not claimed. The primary checkout is reported as a root.
 - **Remove:** calls `lane rm` from the primary checkout. Lane's refusal to discard edits, pending notes, or unmerged commits becomes OpenCode's `forceRequired` error. Confirmed force passes `--force`. Lane removes the branch as well as the directory.
 - **Cancellation:** subprocesses receive the operation's abort signal. Errors are surfaced to OpenCode; it does not retry creation using Git.
