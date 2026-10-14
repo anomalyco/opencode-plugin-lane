@@ -7,14 +7,16 @@ import { CommandError, run } from "./command"
 interface Options {
   executable: string
   dirty: boolean
+  branchPrefix: string
 }
 
 function options(value: Record<string, unknown>): Options {
   for (const key of Object.keys(value)) {
-    if (key !== "executable" && key !== "dirty") throw new Error(`Unknown Lane option: ${key}`)
+    if (key !== "executable" && key !== "dirty" && key !== "branchPrefix") throw new Error(`Unknown Lane option: ${key}`)
   }
   const executable = value.executable ?? "lane"
   const dirty = value.dirty ?? false
+  const branchPrefix = value.branchPrefix ?? ""
   if (typeof executable !== "string" || !executable.trim() || executable.includes("\0")) {
     throw new Error("Lane executable must be a non-empty command name or absolute path")
   }
@@ -22,7 +24,10 @@ function options(value: Record<string, unknown>): Options {
     throw new Error("Use an absolute path for the Lane executable")
   }
   if (typeof dirty !== "boolean") throw new Error("Lane dirty must be a boolean")
-  return { executable, dirty }
+  if (typeof branchPrefix !== "string" || (branchPrefix !== "" && !/^[a-zA-Z0-9]+(?:[-/][a-zA-Z0-9]+)*$/.test(branchPrefix))) {
+    throw new Error("Lane branchPrefix must be empty or alphanumeric words separated by single hyphens or slashes")
+  }
+  return { executable, dirty, branchPrefix }
 }
 
 // Resolve symlinked ancestors even before a destination has been created.
@@ -98,12 +103,13 @@ async function inventory(executable: string, root: string, signal: AbortSignal):
 }
 
 export function makeStrategy(value: Record<string, unknown> = {}): WorktreeDefinition {
-  const { executable, dirty } = options(value)
+  const { executable, dirty, branchPrefix } = options(value)
   return {
     id: "lane",
     async create(input, { signal }) {
       const { root, checkout } = await layout(input.sourceDirectory, signal)
-      const requested = basename(resolve(input.directory))
+      const task = basename(resolve(input.directory))
+      const requested = branchPrefix ? `${branchPrefix}/${task}` : task
       await run("git", ["check-ref-format", "--branch", requested], root, signal)
       // OpenCode's destination is a suggestion. Lane owns the actual path and
       // must check collisions here, including branches without a worktree.

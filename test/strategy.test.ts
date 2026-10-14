@@ -14,6 +14,10 @@ test("validates plugin options before registration", () => {
   expect(() => makeStrategy({ executable: "./lane" })).toThrow("absolute path")
   expect(() => makeStrategy({ executable: "" })).toThrow("non-empty")
   expect(() => makeStrategy({ directory: "/tmp" })).toThrow("Unknown Lane option")
+  for (const branchPrefix of [1, "../escape", "/absolute", "trailing/", ".hidden", "two words", "a//b", "a\\b", "a.lock"]) {
+    expect(() => makeStrategy({ branchPrefix })).toThrow("Lane branchPrefix must")
+  }
+  expect(() => makeStrategy({ branchPrefix: "team/review-bot" })).not.toThrow()
 })
 
 test("cancellation stops an in-flight command", async () => {
@@ -165,6 +169,33 @@ describe.skipIf(!executable)("Lane CLI integration", () => {
     expect(await readFile(join(detached.directory, "file.txt"), "utf8")).toBe("linked edit\n")
     const previous = await strategy.create({ sourceDirectory: destination("source"), directory: join(temp, "previous"), branch: "HEAD~1" }, context())
     expect(await readFile(join(previous.directory, "file.txt"), "utf8")).toBe("original\n")
+  })
+
+  test("namespaces branches and directories with branchPrefix", async () => {
+    const prefixed = makeStrategy({ executable, branchPrefix: "team/review" })
+    await git("branch", "team/review/fix")
+    const input = { sourceDirectory: root, directory: join(temp, "fix") }
+    const first = await prefixed.create(input, context())
+    const second = await prefixed.create(input, context())
+    expect(first.directory).toBe(destination("team/review/fix-2"))
+    expect(second.directory).toBe(destination("team/review/fix-3"))
+    expect(await run("git", ["branch", "--show-current"], second.directory, context().signal)).toBe("team/review/fix-3")
+    expect(await prefixed.list(root, context())).toEqual([
+      { directory: root, type: "root" },
+      { directory: first.directory, type: "worktree" },
+      { directory: second.directory, type: "worktree" },
+    ])
+    await prefixed.remove({ ...first, force: false }, context())
+    await prefixed.remove({ ...second, force: false }, context())
+    expect(await git("branch", "--list", "--format=%(refname:short)", "team/review/*")).toBe("team/review/fix")
+  })
+
+  test("lists and removes lanes created with a different prefix", async () => {
+    const unprefixed = await create("old-task")
+    const prefixed = makeStrategy({ executable, branchPrefix: "team" })
+    expect(await prefixed.list(root, context())).toContainEqual({ directory: unprefixed.directory, type: "worktree" })
+    await prefixed.remove({ ...unprefixed, force: false }, context())
+    expect(await git("branch", "--list", "old-task")).toBe("")
   })
 
   test("does not reinterpret cancellation as a force-required failure", async () => {
