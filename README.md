@@ -1,5 +1,8 @@
 # opencode-plugin-lane
 
+<a href="https://opencode.ai"><picture><source media="(prefers-color-scheme: dark)" srcset="https://opencode.ai/brand/badges/opencode-built-with-g-dark-20.svg"><img alt="Built with OpenCode" src="https://opencode.ai/brand/badges/opencode-built-with-g-light-20.svg" height="20" /></picture></a>
+<a href="https://opencode.ai"><picture><source media="(prefers-color-scheme: dark)" srcset="https://opencode.ai/brand/badges/opencode-works-with-g-dark-20.svg"><img alt="Works with OpenCode" src="https://opencode.ai/brand/badges/opencode-works-with-g-light-20.svg" height="20" /></picture></a>
+
 [Lane](https://github.com/lukeed/lane) copy-on-write worktrees as an **OpenCode V2 worktree strategy**.
 
 Registers strategy `lane` through `ctx.worktree.transform`. OpenCode automatically selects the last registered strategy; unloading the plugin restores the previous strategy.
